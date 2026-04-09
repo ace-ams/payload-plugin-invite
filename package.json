@@ -67,7 +67,7 @@
     "mongodb-memory-server": "10.1.4",
     "next": "16.2.2",
     "open": "^10.1.0",
-    "payload": "3.37.0",
+    "payload": "3.79.1",
     "prettier": "^3.4.2",
     "qs-esm": "8.0.1",
     "react": "19.2.4",
