@@ -50,7 +50,7 @@
     "@payloadcms/db-postgres": "3.37.0",
     "@payloadcms/db-sqlite": "3.37.0",
     "@payloadcms/eslint-config": "3.9.0",
-    "@payloadcms/next": "3.37.0",
+    "@payloadcms/next": "3.78.0",
     "@payloadcms/richtext-lexical": "3.37.0",
     "@payloadcms/ui": "3.37.0",
     "@playwright/test": "1.58.2",
