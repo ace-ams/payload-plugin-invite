@@ -1,13 +1,33 @@
 'use client'
 
 import { Button, Drawer, useConfig, useModal } from '@payloadcms/ui'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
+
+import type { InviteField } from '../types.js'
 
 const DRAWER_SLUG = 'invite-user-drawer'
 
 type AuthCollection = {
   labels?: { plural?: Record<string, string> | string }
   slug: string
+}
+
+const fieldStyle: React.CSSProperties = {
+  marginBottom: '1.25rem',
+}
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  fontWeight: 600,
+  marginBottom: '0.375rem',
+}
+
+const inputStyle: React.CSSProperties = {
+  border: '1px solid var(--theme-elevation-200, #ccc)',
+  borderRadius: '4px',
+  fontSize: '1rem',
+  padding: '0.5rem 0.75rem',
+  width: '100%',
 }
 
 export const InviteUserButton: React.FC = () => {
@@ -18,13 +38,34 @@ export const InviteUserButton: React.FC = () => {
     (c) => Boolean(c.auth) && c.slug !== 'plugin-invites',
   )
 
+  const inviteFields = useMemo<InviteField[]>(
+    () => (config.admin?.custom?.['payload-invite']?.fields as InviteField[] | undefined) ?? [],
+    [config.admin?.custom],
+  )
+
   const [email, setEmail] = useState('')
   const [selectedCollection, setSelectedCollection] = useState<string>(
     authCollections[0]?.slug ?? 'users',
   )
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  // Extra field values keyed by field name
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(inviteFields.map((f) => [f.name, ''])),
+  )
+
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<null | string>(null)
   const [successEmail, setSuccessEmail] = useState<null | string>(null)
+
+  const setFieldValue = useCallback((name: string, value: string) => {
+    setFieldValues((prev) => ({ ...prev, [name]: value }))
+  }, [])
+
+  const resetForm = useCallback(() => {
+    setEmail('')
+    setError(null)
+    setSuccessEmail(null)
+    setFieldValues(Object.fromEntries(inviteFields.map((f) => [f.name, ''])))
+  }, [inviteFields])
 
   const handleOpen = useCallback(() => {
     openModal(DRAWER_SLUG)
@@ -32,12 +73,8 @@ export const InviteUserButton: React.FC = () => {
 
   const handleClose = useCallback(() => {
     closeModal(DRAWER_SLUG)
-    setTimeout(() => {
-      setError(null)
-      setSuccessEmail(null)
-      setEmail('')
-    }, 300)
-  }, [closeModal])
+    setTimeout(resetForm, 300)
+  }, [closeModal, resetForm])
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -47,15 +84,19 @@ export const InviteUserButton: React.FC = () => {
 
       try {
         const res = await fetch('/api/plugin-invites/create', {
-          body: JSON.stringify({ collection: selectedCollection, email }),
+          body: JSON.stringify({
+            collection: selectedCollection,
+            data: fieldValues,
+            email,
+          }),
           headers: { 'Content-Type': 'application/json' },
           method: 'POST',
         })
 
-        const data: { error?: string } = await res.json()
+        const result: { error?: string } = await res.json()
 
         if (!res.ok) {
-          setError(data.error ?? 'Something went wrong')
+          setError(result.error ?? 'Something went wrong')
           return
         }
 
@@ -67,13 +108,47 @@ export const InviteUserButton: React.FC = () => {
         setIsSubmitting(false)
       }
     },
-    [email, selectedCollection],
+    [email, fieldValues, selectedCollection],
   )
 
   const handleInviteAnother = useCallback(() => {
-    setSuccessEmail(null)
-    setError(null)
-  }, [])
+    resetForm()
+  }, [resetForm])
+
+  const collectionSelect = useMemo(() => {
+    if (authCollections.length <= 1) {
+      return null
+    }
+
+    return (
+      <div style={fieldStyle}>
+        <label htmlFor="invite-collection" style={labelStyle}>
+          Invite To
+        </label>
+        <select
+          aria-label="Invite To"
+          disabled={isSubmitting}
+          id="invite-collection"
+          onChange={(e) => setSelectedCollection(e.target.value)}
+          style={inputStyle}
+          value={selectedCollection}
+        >
+          {authCollections.map((c) => {
+            const rawLabel = c.labels?.plural
+            const label =
+              typeof rawLabel === 'string'
+                ? rawLabel
+                : c.slug.charAt(0).toUpperCase() + c.slug.slice(1)
+            return (
+              <option key={c.slug} value={c.slug}>
+                {label}
+              </option>
+            )
+          })}
+        </select>
+      </div>
+    )
+  }, [authCollections, isSubmitting, selectedCollection])
 
   return (
     <>
@@ -114,11 +189,9 @@ export const InviteUserButton: React.FC = () => {
               </p>
             )}
 
-            <div style={{ marginBottom: '1.25rem' }}>
-              <label
-                htmlFor="invite-email"
-                style={{ display: 'block', fontWeight: 600, marginBottom: '0.375rem' }}
-              >
+            {/* Email — always first */}
+            <div style={fieldStyle}>
+              <label htmlFor="invite-email" style={labelStyle}>
                 Email Address
               </label>
               <input
@@ -128,55 +201,66 @@ export const InviteUserButton: React.FC = () => {
                 id="invite-email"
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                style={{
-                  border: '1px solid var(--theme-elevation-200, #ccc)',
-                  borderRadius: '4px',
-                  fontSize: '1rem',
-                  padding: '0.5rem 0.75rem',
-                  width: '100%',
-                }}
+                style={inputStyle}
                 type="email"
                 value={email}
               />
             </div>
 
-            {authCollections.length > 1 && (
-              <div style={{ marginBottom: '1.25rem' }}>
-                <label
-                  htmlFor="invite-collection"
-                  style={{ display: 'block', fontWeight: 600, marginBottom: '0.375rem' }}
-                >
-                  Invite To
-                </label>
-                <select
-                  aria-label="Invite To"
-                  disabled={isSubmitting}
-                  id="invite-collection"
-                  onChange={(e) => setSelectedCollection(e.target.value)}
-                  style={{
-                    border: '1px solid var(--theme-elevation-200, #ccc)',
-                    borderRadius: '4px',
-                    fontSize: '1rem',
-                    padding: '0.5rem 0.75rem',
-                    width: '100%',
-                  }}
-                  value={selectedCollection}
-                >
-                  {authCollections.map((c) => {
-                    const rawLabel = c.labels?.plural
-                    const label =
-                      typeof rawLabel === 'string'
-                        ? rawLabel
-                        : c.slug.charAt(0).toUpperCase() + c.slug.slice(1)
-                    return (
-                      <option key={c.slug} value={c.slug}>
-                        {label}
-                      </option>
-                    )
-                  })}
-                </select>
-              </div>
-            )}
+            {/* Extra fields from plugin config */}
+            {inviteFields.map((field) => {
+              const id = `invite-field-${field.name}`
+              const label = field.label ?? field.name.charAt(0).toUpperCase() + field.name.slice(1)
+              const value = fieldValues[field.name] ?? ''
+
+              if (field.type === 'select' && field.options?.length) {
+                return (
+                  <div key={field.name} style={fieldStyle}>
+                    <label htmlFor={id} style={labelStyle}>
+                      {label}
+                    </label>
+                    <select
+                      aria-label={label}
+                      disabled={isSubmitting}
+                      id={id}
+                      onChange={(e) => setFieldValue(field.name, e.target.value)}
+                      required={field.required}
+                      style={inputStyle}
+                      value={value}
+                    >
+                      <option value="">— Select —</option>
+                      {field.options.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )
+              }
+
+              return (
+                <div key={field.name} style={fieldStyle}>
+                  <label htmlFor={id} style={labelStyle}>
+                    {label}
+                  </label>
+                  <input
+                    aria-label={label}
+                    autoComplete="off"
+                    disabled={isSubmitting}
+                    id={id}
+                    onChange={(e) => setFieldValue(field.name, e.target.value)}
+                    required={field.required}
+                    style={inputStyle}
+                    type="text"
+                    value={value}
+                  />
+                </div>
+              )
+            })}
+
+            {/* Collection selector — only shown when there are multiple targets */}
+            {collectionSelect}
 
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <Button disabled={isSubmitting} type="submit">

@@ -69,11 +69,15 @@ export const acceptInviteEndpoint =
       return Response.json({ error: 'Invalid collection' }, { status: 400 })
     }
 
+    // Merge any extra fields stored on the invite into the user document
+    const extraData = (invite.data as null | Record<string, unknown>) ?? {}
+
     // Create the user account
     try {
       await req.payload.create({
         collection: collectionSlug,
         data: {
+          ...extraData,
           email: invite.email as string,
           password,
         },

@@ -41,7 +41,7 @@ const buildConfigWithMemoryDB = async () => {
         auth: true,
         fields: [
           {
-            name: 'Name',
+            name: 'name',
             type: 'text',
           },
         ],
@@ -69,10 +69,18 @@ const buildConfigWithMemoryDB = async () => {
     },
     plugins: [
       payloadInvite({
+        fields: [
+          {
+            name: 'name',
+            label: 'Full Name',
+            required: true,
+          },
+        ],
         userCollections: ['users'],
       }),
     ],
     secret: process.env.PAYLOAD_SECRET || 'test-secret_key',
+    serverURL: process.env.PAYLOAD_SERVER_URL || 'http://localhost:3000',
     sharp,
     typescript: {
       outputFile: path.resolve(dirname, 'payload-types.ts'),

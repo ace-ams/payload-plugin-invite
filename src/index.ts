@@ -1,6 +1,6 @@
 import type { CollectionSlug, Config } from 'payload'
 
-import type { PayloadInviteConfig } from './types.js'
+import type { InviteField, PayloadInviteConfig } from './types.js'
 
 import { buildInvitesCollection } from './collections/Invites.js'
 
@@ -14,6 +14,21 @@ export const payloadInvite =
     if (!config.collections) {
       config.collections = []
     }
+
+    // Expose field definitions via config.admin.custom so the client InviteUserButton
+    // can read them through useConfig(). Note: config.custom is server-only and stripped
+    // before reaching the client — config.admin.custom is included in the client config.
+    const inviteFields: InviteField[] = pluginOptions.fields ?? []
+
+    if (!config.admin) {
+      config.admin = {}
+    }
+
+    if (!config.admin.custom) {
+      config.admin.custom = {}
+    }
+
+    config.admin.custom['payload-invite'] = { fields: inviteFields }
 
     // Always add the invites collection (with its endpoints) so the DB schema stays consistent.
     // The collection's custom endpoints (/create, /validate, /accept) live on the collection

@@ -91,7 +91,11 @@ Accept your invitation here: {url}
 This link will expire in 48 hours. If you did not expect this invitation, you can safely ignore this email.`
 
 /**
- * Replaces all occurrences of {url} and {email} in a template string.
+ * Replaces all occurrences of {key} placeholders in a template string.
+ * Works with any key/value pairs — {url}, {email}, {name}, or any custom field.
  */
-export const renderTemplate = (template: string, values: { email: string; url: string }): string =>
-  template.replaceAll('{url}', values.url).replaceAll('{email}', values.email)
+export const renderTemplate = (template: string, values: Record<string, string>): string =>
+  Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, value),
+    template,
+  )

@@ -8,7 +8,7 @@ import { validateInviteEndpoint } from '../endpoints/validateInvite.js'
 
 export const buildInvitesCollection = (pluginOptions: PayloadInviteConfig): CollectionConfig => ({
   slug: 'plugin-invites',
-  admin: { hidden: true },
+  // admin: { hidden: true },
   endpoints: [
     {
       handler: createInviteEndpoint(pluginOptions),
@@ -56,6 +56,14 @@ export const buildInvitesCollection = (pluginOptions: PayloadInviteConfig): Coll
       type: 'select',
       defaultValue: 'pending',
       options: ['pending', 'accepted', 'expired'],
+    },
+    {
+      name: 'data',
+      type: 'json',
+      admin: {
+        description:
+          'Extra field values collected at invite time, applied to the user on account creation.',
+      },
     },
   ],
 })

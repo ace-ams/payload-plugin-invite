@@ -126,6 +126,58 @@ Any field you omit falls back to the built-in default. You do not need to provid
 
 ---
 
+## Extra fields
+
+You can collect additional information when sending an invite — for example a name or a role. Those values are stored with the invite and written directly onto the user document when the account is created. Each field name is also available as a placeholder in your email templates.
+
+```ts
+payloadInvite({
+  userCollections: ['users'],
+  fields: [
+    {
+      name: 'name',
+      label: 'Full Name',
+      required: true,
+    },
+    {
+      name: 'role',
+      label: 'Role',
+      type: 'select',
+      options: ['editor', 'viewer'],
+    },
+  ],
+})
+```
+
+The admin will see these inputs in the **Invite User** drawer, below the email field. On account creation the values are spread onto the user document, so `name: 'Jane'` will set the `name` field on the `users` collection document.
+
+### Field options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `name` | `string` | — | **Required.** Must match the field name on the user collection. |
+| `label` | `string` | Field name | Label shown in the invite form. |
+| `type` | `'text' \| 'select'` | `'text'` | Input type rendered in the form. |
+| `options` | `string[]` | — | Required when `type` is `'select'`. |
+| `required` | `boolean` | `false` | Prevents the form from submitting if left empty. |
+
+### Using field values in email templates
+
+Every field name is automatically available as a placeholder alongside `{url}` and `{email}`:
+
+```ts
+payloadInvite({
+  fields: [{ name: 'name', label: 'Full Name' }],
+  email: {
+    subject: 'Hi {name}, your invitation is ready',
+    html: '<p>Hi {name},</p><p><a href="{url}">Click here</a> to set your password.</p>',
+    text: 'Hi {name},\n\nAccept your invite here: {url}',
+  },
+})
+```
+
+---
+
 ## API endpoints
 
 The plugin registers three endpoints on the `plugin-invites` collection:
