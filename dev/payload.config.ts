@@ -37,6 +37,16 @@ const buildConfigWithMemoryDB = async () => {
     },
     collections: [
       {
+        slug: 'users',
+        auth: true,
+        fields: [
+          {
+            name: 'Name',
+            type: 'text',
+          },
+        ],
+      },
+      {
         slug: 'posts',
         fields: [],
       },
@@ -59,9 +69,7 @@ const buildConfigWithMemoryDB = async () => {
     },
     plugins: [
       payloadInvite({
-        collections: {
-          posts: true,
-        },
+        userCollections: ['users'],
       }),
     ],
     secret: process.env.PAYLOAD_SECRET || 'test-secret_key',

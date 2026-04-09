@@ -1,62 +1,33 @@
 import type { CollectionSlug, Config } from 'payload'
 
-import { customEndpointHandler } from './endpoints/customEndpointHandler.js'
+import type { PayloadInviteConfig } from './types.js'
 
-export type PayloadInviteConfig = {
-  /**
-   * List of collections to add a custom field
-   */
-  collections?: Partial<Record<CollectionSlug, true>>
-  disabled?: boolean
-}
+import { buildInvitesCollection } from './collections/Invites.js'
+
+export type { PayloadInviteConfig } from './types.js'
 
 export const payloadInvite =
-  (pluginOptions: PayloadInviteConfig) =>
+  (pluginOptions: PayloadInviteConfig = {}) =>
   (config: Config): Config => {
+    const userCollections: CollectionSlug[] = pluginOptions.userCollections ?? ['users']
+
     if (!config.collections) {
       config.collections = []
     }
 
-    config.collections.push({
-      slug: 'plugin-collection',
-      fields: [
-        {
-          name: 'id',
-          type: 'text',
-        },
-      ],
-    })
+    // Always add the invites collection (with its endpoints) so the DB schema stays consistent.
+    // The collection's custom endpoints (/create, /validate, /accept) live on the collection
+    // itself to avoid being shadowed by Payload's collection ID-lookup routing.
+    config.collections.push(buildInvitesCollection(pluginOptions))
 
-    if (pluginOptions.collections) {
-      for (const collectionSlug in pluginOptions.collections) {
-        const collection = config.collections.find(
-          (collection) => collection.slug === collectionSlug,
-        )
-
-        if (collection) {
-          collection.fields.push({
-            name: 'addedByPlugin',
-            type: 'text',
-            admin: {
-              position: 'sidebar',
-            },
-          })
-        }
-      }
-    }
-
-    /**
-     * If the plugin is disabled, we still want to keep added collections/fields so the database schema is consistent which is important for migrations.
-     * If your plugin heavily modifies the database schema, you may want to remove this property.
-     */
     if (pluginOptions.disabled) {
       return config
     }
 
-    if (!config.endpoints) {
-      config.endpoints = []
-    }
-
+    // Register the accept-invite page as a custom admin view.
+    // Payload's isCustomAdminView() bypasses the auth redirect for all custom views,
+    // so this page is publicly accessible even without being logged in — and it
+    // inherits the full admin CSS/layout automatically.
     if (!config.admin) {
       config.admin = {}
     }
@@ -65,47 +36,36 @@ export const payloadInvite =
       config.admin.components = {}
     }
 
-    if (!config.admin.components.beforeDashboard) {
-      config.admin.components.beforeDashboard = []
+    if (!config.admin.components.views) {
+      config.admin.components.views = {}
     }
 
-    config.admin.components.beforeDashboard.push(
-      `payload-invite/client#BeforeDashboardClient`,
-    )
-    config.admin.components.beforeDashboard.push(
-      `payload-invite/rsc#BeforeDashboardServer`,
-    )
+    config.admin.components.views['invite-accept'] = {
+      Component: 'payload-invite/rsc#AcceptInviteView',
+      exact: true,
+      path: '/invite-accept',
+    }
 
-    config.endpoints.push({
-      handler: customEndpointHandler,
-      method: 'get',
-      path: '/my-plugin-endpoint',
-    })
+    // Add the "Invite User" button after the list table of each target user collection
+    for (const collectionSlug of userCollections) {
+      const collection = config.collections.find((c) => c.slug === collectionSlug)
 
-    const incomingOnInit = config.onInit
+      if (collection) {
+        if (!collection.admin) {
+          collection.admin = {}
+        }
 
-    config.onInit = async (payload) => {
-      // Ensure we are executing any existing onInit functions before running our own.
-      if (incomingOnInit) {
-        await incomingOnInit(payload)
-      }
+        if (!collection.admin.components) {
+          collection.admin.components = {}
+        }
 
-      const { totalDocs } = await payload.count({
-        collection: 'plugin-collection',
-        where: {
-          id: {
-            equals: 'seeded-by-plugin',
-          },
-        },
-      })
+        if (!collection.admin.components.afterListTable) {
+          collection.admin.components.afterListTable = []
+        }
 
-      if (totalDocs === 0) {
-        await payload.create({
-          collection: 'plugin-collection',
-          data: {
-            id: 'seeded-by-plugin',
-          },
-        })
+        ;(collection.admin.components.afterListTable as string[]).push(
+          `payload-invite/client#InviteUserButton`,
+        )
       }
     }
 
