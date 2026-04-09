@@ -4,6 +4,13 @@ import crypto from 'node:crypto'
 
 import type { PayloadInviteConfig } from '../types.js'
 
+import {
+  defaultEmailHtml,
+  defaultEmailSubject,
+  defaultEmailText,
+  renderTemplate,
+} from '../email/defaultTemplate.js'
+
 export const createInviteEndpoint =
   (pluginOptions: PayloadInviteConfig): PayloadHandler =>
   async (req) => {
@@ -55,24 +62,24 @@ export const createInviteEndpoint =
       },
     })
 
+    // Build the full invite URL — serverURL is always absolute (e.g. https://example.com)
     const serverURL = req.payload.config.serverURL ?? ''
-
-    // Send the invite email
     const adminRoute = req.payload.config.routes.admin ?? '/admin'
     const inviteURL = `${serverURL}${adminRoute}/invite-accept?token=${rawToken}`
 
-    await req.payload.sendEmail({
-      html: `
-        <p>You have been invited to create an account.</p>
-        <p>Click the link below to accept your invitation. This link expires in ${Math.round(inviteExpiryMs / (60 * 60 * 1000))} hours.</p>
-        <p><a href="${inviteURL}">Accept Invitation</a></p>
-        <p>Or copy and paste this URL into your browser:</p>
-        <p>${inviteURL}</p>
-      `,
-      subject: 'You have been invited',
-      text: `You have been invited to create an account. Visit ${inviteURL} to accept.`,
-      to: email,
-    })
+    // Merge default templates with any user overrides
+    const templateValues = { email, url: inviteURL }
+
+    const subject = renderTemplate(
+      pluginOptions.email?.subject ?? defaultEmailSubject,
+      templateValues,
+    )
+
+    const html = renderTemplate(pluginOptions.email?.html ?? defaultEmailHtml, templateValues)
+
+    const text = renderTemplate(pluginOptions.email?.text ?? defaultEmailText, templateValues)
+
+    await req.payload.sendEmail({ html, subject, text, to: email })
 
     return Response.json({ success: true })
   }
