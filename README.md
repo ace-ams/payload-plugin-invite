@@ -20,7 +20,7 @@ Tokens are never stored in plain text — only a SHA-256 hash is persisted. Each
 ```bash
 npm install payload-invite
 # or
-pnpm add payload-invite
+npm add payload-invite
 ```
 
 ---
