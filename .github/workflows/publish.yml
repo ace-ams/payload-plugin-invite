@@ -1,4 +1,5 @@
 name: Publish to npm
+run-name: Publish ${{ github.ref_name }} to npm
  
 on:
   push:
